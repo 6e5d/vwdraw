@@ -61,10 +61,11 @@ int main(int argc, char **argv) {
 		imgview_init(&iv, img.width, img.height);
 		memcpy(iv.vb2.img.data, img.data, img.width * img.height * 4);
 	} else {
-		uint32_t w = 800, h = 600;
+		uint32_t w = 1200, h = 800;
 		imgview_init(&iv, w, h);
+		memset(iv.vb2.img.data, 255, w * h * 4);
 	}
-	sib_simple_config(&brush);
+	sib_simple_config_eraser(&brush);
 	imgview_damage_all(&iv);
 	uint64_t time1 = 0, time2 = 0;
 	while(!iv.quit) {
