@@ -9,10 +9,10 @@
 #include "../../imgview/include/imgview.h"
 #include "../../wlezwrap/include/wlezwrap.h"
 #include "../../simpleimg/include/simpleimg.h"
-#include "../include/brush.h"
+#include "../../sib/include/simple.h"
 
-static bool click, drag;
-// double px, py;
+static bool click;
+static SibSimple brush;
 
 static void f_event(Imgview* iv, uint8_t type, WlezwrapEvent *event) {
 	if (type == 3) {
@@ -23,24 +23,18 @@ static void f_event(Imgview* iv, uint8_t type, WlezwrapEvent *event) {
 		}
 		if (!event->key[1]) {
 			click = false;
-			drag = false;
+			sib_simple_finish(&brush);
 		}
 	} else if (type == 2) {
 		if (!click) { return; }
 		vec2 s, w;
 		s[0] = (float)event->motion[0];
 		s[1] = (float)event->motion[1];
-		if (drag) {
-			imgview_s2w(iv, s, w);
-			if (w[0] >= 0.0f && w[0] < (float)iv->vb2.img.width &&
-				w[1] >= 0.0f && w[1] < (float)iv->vb2.img.height) {
-				imgview_damage_all(iv);
-				brush_fcircle(&iv->vb2.img,
-					w[0], w[1], 6.0, 1.0);
-				iv->dirty = true;
-			}
-		}
-		drag = true;
+		float p = (float)event->motion[2];
+		imgview_s2w(iv, s, w);
+		imgview_damage_all(iv);
+		sib_simple_update(&brush, &iv->vb2.img, w[0], w[1], p);
+		iv->dirty = true;
 	}
 }
 
@@ -69,8 +63,8 @@ int main(int argc, char **argv) {
 	} else {
 		uint32_t w = 800, h = 600;
 		imgview_init(&iv, w, h);
-		memset(iv.vb2.img.data, 255, w * h * 4);
 	}
+	sib_simple_config(&brush);
 	imgview_damage_all(&iv);
 	uint64_t time1 = 0, time2 = 0;
 	while(!iv.quit) {
