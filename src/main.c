@@ -32,8 +32,8 @@ static void f_event(Imgview* iv, uint8_t type, WlezwrapEvent *event) {
 		s[1] = (float)event->motion[1];
 		float p = (float)event->motion[2];
 		imgview_s2w(iv, s, w);
-		imgview_damage_all(iv);
-		sib_simple_update(&brush, &iv->vb2.img, w[0], w[1], p);
+		sib_simple_update(&brush, &iv->vb2.overlay, w[0], w[1], p);
+		iv->damage[2] = 1; iv->damage[3] = 1; // TODO: proper damage
 		iv->dirty = true;
 	}
 }
@@ -55,18 +55,8 @@ int main(int argc, char **argv) {
 	const uint64_t FTIME = 20000;
 	Imgview iv = {0};
 	iv.event = f_event;
-	if (argc >= 2) {
-		Simpleimg img;
-		simpleimg_load(&img, argv[1]);
-		imgview_init(&iv, img.width, img.height);
-		memcpy(iv.vb2.img.data, img.data, img.width * img.height * 4);
-	} else {
-		uint32_t w = 1200, h = 800;
-		imgview_init(&iv, w, h);
-		memset(iv.vb2.img.data, 255, w * h * 4);
-	}
-	sib_simple_config_eraser(&brush);
-	imgview_damage_all(&iv);
+	imgview_init(&iv);
+	sib_simple_config(&brush);
 	uint64_t time1 = 0, time2 = 0;
 	while(!iv.quit) {
 		wl_display_roundtrip(iv.wew.wl.display);
