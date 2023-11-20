@@ -1,7 +1,7 @@
 from PIL import Image, ImageDraw
 
 def run(p, c, i):
-	image = Image.new("RGBA", (640, 480))
+	image = Image.new("RGBA", (800, 600))
 	draw = ImageDraw.Draw(image)
 	draw.ellipse(p, fill = c)
 	image.save(f"circle{i}.png")

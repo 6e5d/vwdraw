@@ -1,14 +1,15 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stddef.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
 
 #include "../../imgview/include/imgview.h"
+#include "../../imgview/include/lyc.h"
 #include "../../wlezwrap/include/wlezwrap.h"
-#include "../../simpleimg/include/simpleimg.h"
 #include "../../sib/include/simple.h"
 
 static bool click;
@@ -53,9 +54,16 @@ static void print_ftime(uint64_t dt) {
 
 int main(int argc, char **argv) {
 	const uint64_t FTIME = 20000;
+	assert(argc == 2);
 	Imgview iv = {0};
 	iv.event = f_event;
 	imgview_init(&iv);
+	ImgviewLyc *lyc = NULL;
+	size_t llen = imgview_lyc_load(&lyc, argv[1]);
+	for (size_t lid = 0; lid < llen; lid += 1) {
+		imgview_insert_layer(&iv, &lyc[lid]);
+	}
+	free(lyc);
 	sib_simple_config(&brush);
 	uint64_t time1 = 0, time2 = 0;
 	while(!iv.quit) {

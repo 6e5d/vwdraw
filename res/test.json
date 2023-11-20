@@ -1,0 +1,16 @@
+[{
+	"lid": 0,
+	"offset_x": 0,
+	"offset_y": 0,
+	"path": "circle1.png"
+}, {
+	"lid": 1,
+	"offset_x": 0,
+	"offset_y": 0,
+	"path": "circle2.png"
+}, {
+	"lid": 2,
+	"offset_x": 0,
+	"offset_y": 0,
+	"path": "circle3.png"
+}]
