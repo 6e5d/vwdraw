@@ -1,4 +1,2 @@
-simpleimg
 imgview
 sib
-ltree

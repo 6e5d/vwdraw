@@ -63,6 +63,12 @@ int main(int argc, char **argv) {
 	for (size_t lid = 0; lid < llen; lid += 1) {
 		imgview_insert_layer(&iv, &lyc[lid]);
 	}
+	if (llen > 0) {
+		iv.camcon.x = (float)lyc[0].offset[0] -
+			(float)lyc[0].img.width / 2;
+		iv.camcon.y = (float)lyc[1].offset[1] -
+			(float)lyc[1].img.height / 2;
+	}
 	free(lyc);
 	sib_simple_config(&brush);
 	uint64_t time1 = 0, time2 = 0;
