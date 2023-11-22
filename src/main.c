@@ -62,6 +62,7 @@ int main(int argc, char **argv) {
 	size_t llen = imgview_lyc_load(&lyc, argv[1]);
 	for (size_t lid = 0; lid < llen; lid += 1) {
 		imgview_insert_layer(&iv, &lyc[lid]);
+		imgview_lyc_deinit(&lyc[lid]);
 	}
 	if (llen > 0) {
 		iv.camcon.x = (float)lyc[0].offset[0] -
