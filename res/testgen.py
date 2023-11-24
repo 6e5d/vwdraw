@@ -8,7 +8,7 @@ def run(p, c, i):
 	draw.ellipse(p, fill = c)
 	image.save(pp / f"circle{i}.png")
 
-image = Image.new("RGBA", (400, 400), (255, 255, 200, 255))
+image = Image.new("RGBA", (400, 400), (255, 255, 255, 128))
 image.save(pp / f"bg.png")
 run((0, 0, 200, 200), (0, 255, 0, 128), 1)
 run((0, 0, 200, 200), (255, 0, 0, 255), 2)
