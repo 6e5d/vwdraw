@@ -9,19 +9,18 @@
 #include "../../chrono/include/chrono.h"
 #include "../../dmgrect/include/dmgrect.h"
 #include "../../imgview/include/imgview.h"
-#include "../../vwdview/include/vwdview.h"
-#include "../../vwdedit/include/vwdedit.h"
-#include "../../vwdedit/include/layout.h"
+#include "../../sib/include/simple.h"
 #include "../../vkstatic/include/oneshot.h"
+#include "../../vwdedit/include/layout.h"
+#include "../../vwdedit/include/vwdedit.h"
 #include "../../vwdlayer/include/layer.h"
 #include "../../vwdlayout/include/command.h"
 #include "../../vwdlayout/include/layer.h"
 #include "../../vwdlayout/include/vwdlayout.h"
+#include "../../vwdview/include/vwdview.h"
 #include "../../wlezwrap/include/wlezwrap.h"
-#include "../../sib/include/simple.h"
 #include "../include/lyc.h"
 
-static bool click;
 static SibSimple brush;
 static Imgview iv;
 static Vwdview vv;
@@ -29,46 +28,17 @@ static Vwdlayout vl;
 static Vwdedit ve;
 static Simpleimg overlay;
 static Vwdlayer *player;
-static Dmgrect dmg_stroke;
-
-static void f_event(Vwdview* ivv, uint8_t type, WlezwrapEvent *event) {
-	if (type == 3) {
-		if (event->key[0] == WLEZWRAP_LCLICK) {
-			if (event->key[1]) {
-				click = true;
-				dmgrect_init(&dmg_stroke);
-			}
-		}
-		if (!event->key[1]) {
-			click = false;
-			sib_simple_finish(&brush);
-			// TODO: submission
-		}
-	} else if (type == 2) {
-		if (!click) { return; }
-		// TODO: handle coordinate mapping in imgview
-		vec2 s, w;
-		s[0] = (float)event->motion[0];
-		s[1] = (float)event->motion[1];
-		float p = (float)event->motion[2];
-		vwdview_s2w(ivv, s, w);
-		sib_simple_update(&brush, &overlay, &ve.dmg_paint,
-			w[0] - (float)player->offset[0],
-			w[1] - (float)player->offset[1],
-			p
-		);
-		dmgrect_union(&dmg_stroke, &ve.dmg_paint);
-	}
-}
+// static Dmgrect dmg_stroke;
 
 static void focus(size_t ldx) {
 	printf("focusing %zu\n", ldx);
 	player = vwdlayout_ldx(&vl, ldx);
-	printf("focus: setting up %ux%u simpleimg\n",
-		overlay.width, overlay.height);
 	vwdedit_setup(&ve, &iv.vks, &player->image, (void**)&overlay.data);
 	overlay.width = player->image.size[0];
 	overlay.height = player->image.size[1];
+	vv.offset[0] = player->offset[0];
+	vv.offset[1] = player->offset[1];
+	printf("focus: set up %ux%u\n", overlay.width, overlay.height);
 }
 
 static void do_init(uint32_t w, uint32_t h) {
@@ -82,7 +52,7 @@ int main(int argc, char **argv) {
 	bool init = false;
 	const uint64_t FTIME = 20000000;
 	assert(argc == 2);
-	vv.event = f_event;
+	// vv.event = f_event;
 	Lyc *lyc = NULL;
 	size_t llen = lyc_load(&lyc, argv[1]);
 	for (size_t lid = 0; lid < llen; lid += 1) {
@@ -115,7 +85,7 @@ int main(int argc, char **argv) {
 	size_t ldx = 3;
 	focus(ldx);
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&iv.vks);
-	vwdedit_download_layout_layer(&ve, cbuf, player->image.image);
+	vwdedit_download_layout_layer(&ve, cbuf, player->image);
 	vkstatic_oneshot_end(cbuf, &iv.vks);
 
 	if (llen > 0) {
@@ -126,6 +96,10 @@ int main(int argc, char **argv) {
 	}
 	free(lyc);
 	sib_simple_config(&brush);
+	brush.canvas = &overlay;
+	brush.pending = &ve.dmg_paint;
+	vv.data = (void *)&brush;
+	vv.ifdraw = sib_simple_ifdraw(&brush);
 	ChronoTimer timer;
 	while(!vv.quit) {
 		chrono_timer_reset(&timer);
@@ -151,4 +125,3 @@ int main(int argc, char **argv) {
 	vwdview_deinit(&vv);
 	return 0;
 }
-
