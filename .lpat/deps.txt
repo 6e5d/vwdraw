@@ -3,3 +3,5 @@ imgview
 vwdlayout
 vwdedit
 ltree
+dmgrect
+chrono

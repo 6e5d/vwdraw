@@ -8,7 +8,6 @@
 
 // LaYerCollection
 typedef struct {
-	int32_t lid;
 	int32_t offset[2];
 	Simpleimg img;
 } Lyc;
