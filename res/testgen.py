@@ -3,7 +3,7 @@ from pathlib import Path
 
 pp = Path(__file__).parent
 def run(p, c, i):
-	image = Image.new("RGBA", (p[2], p[3]), (0, 0, 0, 0))
+	image = Image.new("RGBA", (p[2] + 1, p[3] + 1), (0, 0, 0, 0))
 	draw = ImageDraw.Draw(image)
 	draw.ellipse(p, fill = c)
 	image.save(pp / f"circle{i}.png")
