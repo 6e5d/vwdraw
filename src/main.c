@@ -6,16 +6,29 @@
 #include <time.h>
 #include <unistd.h>
 #include <wayland-client.h>
+#include <vulkan/vulkan.h>
 
 #include "../../imgview/include/imgview.h"
-#include "../../imgview/include/lyc.h"
+#include "../../vwdedit/include/vwdedit.h"
+#include "../../vwdedit/include/layout.h"
+#include "../../vkstatic/include/oneshot.h"
+#include "../../vwdlayer/include/layer.h"
+#include "../../vwdlayout/include/command.h"
+#include "../../vwdlayout/include/layer.h"
+#include "../../vwdlayout/include/vwdlayout.h"
 #include "../../wlezwrap/include/wlezwrap.h"
 #include "../../sib/include/simple.h"
+#include "../include/lyc.h"
 
 static bool click;
 static SibSimple brush;
+static Imgview iv;
+static Vwdlayout vl;
+static Vwdedit ve;
+static Simpleimg overlay;
+static Vwdlayer *player;
 
-static void f_event(Imgview* iv, uint8_t type, WlezwrapEvent *event) {
+static void f_event(Imgview* ivv, uint8_t type, WlezwrapEvent *event) {
 	if (type == 3) {
 		if (event->key[0] == WLEZWRAP_LCLICK) {
 			if (event->key[1]) {
@@ -28,14 +41,14 @@ static void f_event(Imgview* iv, uint8_t type, WlezwrapEvent *event) {
 		}
 	} else if (type == 2) {
 		if (!click) { return; }
+		// TODO: handle coordinate mapping in imgview
 		vec2 s, w;
 		s[0] = (float)event->motion[0];
 		s[1] = (float)event->motion[1];
 		float p = (float)event->motion[2];
-		imgview_s2w(iv, s, w);
-		sib_simple_update(&brush, &iv->vb2.overlay, w[0], w[1], p);
-		iv->damage[2] = 1; iv->damage[3] = 1; // TODO: proper damage
-		iv->dirty = true;
+		imgview_s2w(ivv, s, w);
+		sib_simple_update(&brush, &overlay, w[0], w[1], p);
+		ivv->dirty = true;
 	}
 }
 
@@ -52,18 +65,54 @@ static void print_ftime(uint64_t dt) {
 	printf("[2Ktf=%lu\r", dt); fflush(stdout);
 }
 
+static Vwdlayer *focus(size_t ldx) {
+	printf("focusing %zu\n", ldx);
+	Vwdlayer *layer = vwdlayout_ldx(&vl, ldx);
+	printf("focus: setting up %ux%u simpleimg\n",
+		overlay.width, overlay.height);
+	vwdedit_setup(&ve, &iv.vks, &layer->image, (void**)&overlay.data);
+	overlay.width = layer->image.size[0];
+	overlay.height = layer->image.size[1];
+	return layer;
+}
+
 int main(int argc, char **argv) {
 	const uint64_t FTIME = 20000;
 	assert(argc == 2);
-	Imgview iv = {0};
 	iv.event = f_event;
-	imgview_init(&iv);
-	ImgviewLyc *lyc = NULL;
-	size_t llen = imgview_lyc_load(&lyc, argv[1]);
+	imgview_init(&iv, 1000, 500);
+	vwdlayout_init(&vl, &iv.vks, &iv.img);
+	vwdedit_init(&ve, iv.vks.device);
+	Lyc *lyc = NULL;
+	size_t llen = lyc_load(&lyc, argv[1]);
 	for (size_t lid = 0; lid < llen; lid += 1) {
-		imgview_insert_layer(&iv, &lyc[lid]);
-		imgview_lyc_deinit(&lyc[lid]);
+		printf("preparing layer %zu\n", lid + 1);
+		uint32_t w = lyc[lid].img.width;
+		uint32_t h = lyc[lid].img.height;
+		vwdlayout_insert_layer(&vl, &iv.vks, lid + 1, lyc[lid].lid,
+			lyc[lid].offset[0], lyc[lid].offset[1], w, h);
+		player = focus(lid + 1);
+		VkCommandBuffer cbuf = vkstatic_oneshot_begin(&iv.vks);
+		printf("copying lyc image to cpu buffer\n");
+		memcpy(overlay.data, lyc[lid].img.data, 4 * w * h);
+		printf("uploading cpu buffer to paint\n");
+		vwdedit_build_command_upload(&ve, iv.vks.device, cbuf);
+		// direct copy
+		printf("blend paint to focus layer\n");
+		vwdedit_build_command(&ve, iv.vks.device, cbuf);
+		vkstatic_oneshot_end(cbuf, &iv.vks);
+		printf("deinit lyc\n");
+		lyc_deinit(&lyc[lid]);
 	}
+	vwdlayout_descset_write(&vl, iv.vks.device);
+	vwdlayout_layer_info(&vl);
+	printf("inserted %zu layers\n", llen);
+	size_t ldx = 3;
+	player = focus(ldx);
+	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&iv.vks);
+	vwdedit_download_layout_layer(&ve, cbuf, player->image.image);
+	vkstatic_oneshot_end(cbuf, &iv.vks);
+
 	if (llen > 0) {
 		iv.camcon.x = (float)lyc[0].offset[0] -
 			(float)lyc[0].img.width / 2;
@@ -74,17 +123,22 @@ int main(int argc, char **argv) {
 	sib_simple_config(&brush);
 	uint64_t time1 = 0, time2 = 0;
 	while(!iv.quit) {
-		wl_display_roundtrip(iv.wew.wl.display);
-		wl_display_dispatch_pending(iv.wew.wl.display);
+		imgview_render_prepare(&iv);
+		vwdedit_build_command_upload(&ve, iv.vks.device, iv.vks.cbuf);
+		vwdedit_build_command(&ve, iv.vks.device, iv.vks.cbuf);
+		vwdlayout_build_command(&vl, iv.vks.device, iv.vks.cbuf);
+		imgview_render(&iv);
 		time2 = get_usec();
 		uint64_t dt = time2 - time1;
 		print_ftime(dt);
 		if (dt < FTIME) {
 			usleep((uint32_t)(FTIME - dt));
 		}
-		imgview_render(&iv);
 		time1 = get_usec();
 	}
+	assert(0 == vkDeviceWaitIdle(iv.vks.device));
+	vwdedit_deinit(&ve, iv.vks.device);
+	vwdlayout_deinit(&vl, iv.vks.device);
 	imgview_deinit(&iv);
 	return 0;
 }
