@@ -18,7 +18,6 @@
 #include "../../vwdlayout/include/layer.h"
 #include "../../vwdlayout/include/vwdlayout.h"
 #include "../../vwdview/include/vwdview.h"
-#include "../../wlezwrap/include/wlezwrap.h"
 #include "../include/lyc.h"
 
 static SibSimple brush;
@@ -28,7 +27,7 @@ static Vwdlayout vl;
 static Vwdedit ve;
 static Simpleimg overlay;
 static Vwdlayer *player;
-// static Dmgrect dmg_stroke;
+static Dmgrect output;
 
 static void focus(size_t ldx) {
 	printf("focusing %zu\n", ldx);
@@ -41,10 +40,10 @@ static void focus(size_t ldx) {
 	printf("focus: set up %ux%u\n", overlay.width, overlay.height);
 }
 
-static void do_init(uint32_t w, uint32_t h) {
+static void do_init(void) {
 	vwdview_init(&vv);
-	imgview_init(&iv, vv.wew.wl.display, vv.wew.wl.surface, w, h);
-	vwdlayout_init(&vl, &iv.vks, &iv.img);
+	imgview_init(&iv, vv.wew.wl.display, vv.wew.wl.surface, &output);
+	vwdlayout_init(&vl, &iv.vks, &output);
 	vwdedit_init(&ve, iv.vks.device);
 }
 
@@ -56,16 +55,22 @@ int main(int argc, char **argv) {
 	Lyc *lyc = NULL;
 	size_t llen = lyc_load(&lyc, argv[1]);
 	for (size_t lid = 0; lid < llen; lid += 1) {
-		printf("preparing layer %zu\n", lid + 1);
+		printf("preparing layer %zu\n", lid);
+		int32_t x = lyc[lid].offset[0];
+		int32_t y = lyc[lid].offset[1];
 		uint32_t w = lyc[lid].img.width;
 		uint32_t h = lyc[lid].img.height;
+		output = (Dmgrect) {
+			.offset = {x, y},
+			.size = {w, h},
+		};
 		if (!init) {
-			do_init(w, h);
+			do_init();
 			init = true;
 		}
-		vwdlayout_insert_layer(&vl, &iv.vks, lid + 1,
-			lyc[lid].offset[0], lyc[lid].offset[1], w, h);
-		focus(lid + 1);
+		vwdlayout_insert_layer(&vl, &iv.vks, lid,
+			x, y, w, h);
+		focus(lid);
 		VkCommandBuffer cbuf = vkstatic_oneshot_begin(&iv.vks);
 		printf("copying lyc image to cpu buffer\n");
 		memcpy(overlay.data, lyc[lid].img.data, 4 * w * h);
@@ -82,17 +87,18 @@ int main(int argc, char **argv) {
 	vwdlayout_descset_write(&vl, iv.vks.device);
 	vwdlayout_layer_info(&vl);
 	printf("inserted %zu layers\n", llen);
-	size_t ldx = 3;
+	size_t ldx = 0;
 	focus(ldx);
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&iv.vks);
 	vwdedit_download_layout_layer(&ve, cbuf, player->image);
 	vkstatic_oneshot_end(cbuf, &iv.vks);
 
 	if (llen > 0) {
+		printf("adjusting camera\n");
 		vv.camcon.x = (float)lyc[0].offset[0] -
 			(float)lyc[0].img.width / 2;
-		vv.camcon.y = (float)lyc[1].offset[1] -
-			(float)lyc[1].img.height / 2;
+		vv.camcon.y = (float)lyc[0].offset[1] -
+			(float)lyc[0].img.height / 2;
 	}
 	free(lyc);
 	sib_simple_config(&brush);
@@ -112,7 +118,7 @@ int main(int argc, char **argv) {
 		vwdedit_build_command(&ve, iv.vks.device, iv.vks.cbuf);
 		vwdlayout_build_command(&vl, iv.vks.device, iv.vks.cbuf);
 		vwdview_build_camera(&vv, iv.uniform.view);
-		imgview_render(&iv);
+		imgview_render(&iv, &vl.output.image);
 		uint64_t dt = chrono_timer_finish(&timer);
 		if (dt < FTIME) {
 			chrono_sleep((uint32_t)(FTIME - dt));

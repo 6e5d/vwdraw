@@ -2,9 +2,7 @@
 
 #include <stdint.h>
 
-#include "../../ltree/include/ltree.h"
 #include "../../simpleimg/include/simpleimg.h"
-#include "../../wholefile/include/wholefile.h"
 
 // LaYerCollection
 typedef struct {

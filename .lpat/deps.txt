@@ -3,6 +3,10 @@ imgview
 vwdview
 vwdlayout
 vwdedit
-ltree
 dmgrect
 chrono
+ppath
+vector
+simpleimg
+vwdlayer
+vkstatic
