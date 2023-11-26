@@ -49,7 +49,7 @@ static void do_init(void) {
 
 int main(int argc, char **argv) {
 	bool init = false;
-	const uint64_t FTIME = 20000000;
+	const uint64_t FTIME = 10000000;
 	assert(argc == 2);
 	// vv.event = f_event;
 	Lyc *lyc = NULL;

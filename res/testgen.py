@@ -9,12 +9,13 @@ def run(p, c, o, i):
 	draw.ellipse(p, fill = c)
 	image.save(pp / f"{i}_{o[0]}_{o[1]}.png")
 
-s = 400
+s = 2000
 a = numpy.zeros((s, s), dtype = numpy.uint8)
-a[2,:] = 255
-a[s - 3,:] = 255
-a[:,2] = 255
-a[:,s - 3] = 255
+a += 255
+a[2,:] = 0
+a[s - 3,:] = 0
+a[:,2] = 0
+a[:,s - 3] = 0
 image = Image.fromarray(a).convert("RGBA")
 image.save(pp / f"0_0_0.png")
 run((0, 0, 200, 200), (0, 255, 0, 128), (100, 0), 1)
