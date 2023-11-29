@@ -1,8 +1,3 @@
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stddef.h>
-#include <string.h>
 #include <wayland-client.h>
 #include <vulkan/vulkan.h>
 
