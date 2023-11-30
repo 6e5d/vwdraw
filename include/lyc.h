@@ -1,8 +1,6 @@
 #ifndef INCLUDEGUARD_VWDRAW_LYCH
 #define INCLUDEGUARD_VWDRAW_LYCH
 
-#include <stdint.h>
-
 #include "../../simpleimg/include/simpleimg.h"
 
 // LaYerCollection
