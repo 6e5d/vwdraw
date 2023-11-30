@@ -68,10 +68,10 @@ int main(int argc, char **argv) {
 		memcpy(overlay.data, lyc[lid].img.data, 4 * w * h);
 		printf("uploading cpu buffer to paint\n");
 		vwdedit_damage_all(&ve);
-		vwdedit_build_command_upload(&ve, iv.vks.device, cbuf);
+		vwdedit_build_command_upload(&ve, cbuf);
 		// direct copy
 		printf("blend paint to focus layer\n");
-		vwdedit_build_command(&ve, iv.vks.device, cbuf);
+		vwdedit_build_command(&ve, cbuf);
 		vkstatic_oneshot_end(cbuf, &iv.vks);
 		printf("deinit lyc\n");
 		lyc_deinit(&lyc[lid]);
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
 	brush.canvas = &overlay;
 	brush.pending = &ve.dmg_paint;
 	vv.data = (void *)&brush;
-	vv.ifdraw = sib_simple_ifdraw(&brush);
+	vv.ifdraw = sib_simple_ifdraw();
 	ChronoTimer timer;
 	while(!vv.quit) {
 		chrono_timer_reset(&timer);
@@ -106,8 +106,8 @@ int main(int argc, char **argv) {
 				vv.window_size[0], vv.window_size[1]);
 		}
 		imgview_render_prepare(&iv);
-		vwdedit_build_command_upload(&ve, iv.vks.device, iv.vks.cbuf);
-		vwdedit_build_command(&ve, iv.vks.device, iv.vks.cbuf);
+		vwdedit_build_command_upload(&ve, iv.vks.cbuf);
+		vwdedit_build_command(&ve, iv.vks.cbuf);
 		vwdlayout_build_command(&vl, iv.vks.device, iv.vks.cbuf);
 		vwdview_build_camera(&vv, iv.uniform.view);
 		imgview_render(&iv, &vl.output.image);
