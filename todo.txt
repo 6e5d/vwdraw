@@ -1,9 +1,7 @@
-# improvement
-smooth: first derivative continuity
-
 # 0.1 milestone
-layer creation/adjust
 submit/undo
+layer creation/adjust
 project export
 eraser shader(alpha removal)
 tool key binding(eraser)
+smooth: first derivative continuity

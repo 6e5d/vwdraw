@@ -1,7 +1,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 
-#include "../include/lyc.h"
+#include "../include/vwdraw.h"
 #include "../../vector/include/vector.h"
 #include "../../ppath/include/ppath.h"
 
@@ -18,7 +18,7 @@ static int compare(const void *a, const void *b) {
 	return ia->id - ib->id;
 }
 
-size_t lyc_load(Lyc **lycp, char* path) {
+size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 	char *abspath = ppath_abs_new(path);
 	DIR *dp;
 	struct dirent *ep;
@@ -43,8 +43,8 @@ size_t lyc_load(Lyc **lycp, char* path) {
 		vector_pushback(&infos, (void *)&info);
 	}
 	qsort(infos.p, infos.len, infos.size, compare);
-	*lycp = malloc(infos.len * sizeof(Lyc));
-	Lyc *pl = *lycp;
+	*lycp = malloc(infos.len * sizeof(VwdrawLyc));
+	VwdrawLyc *pl = *lycp;
 	Info *pi = infos.p;
 	char *imgpath = NULL;
 	for (size_t i = 0; i < infos.len; i += 1, pl += 1, pi += 1) {
@@ -63,6 +63,6 @@ size_t lyc_load(Lyc **lycp, char* path) {
 	return infos.len;
 }
 
-void lyc_deinit(Lyc *lyc) {
+void vwdraw_lyc_deinit(VwdrawLyc *lyc) {
 	simpleimg_deinit(&lyc->img);
 }
