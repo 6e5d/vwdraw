@@ -7,27 +7,34 @@
 static void sync_submit(Vwdraw *vwd, VkCommandBuffer cbuf) {
 	// first round blending, submit drawing in prev frame
 	// 1
-	vwdedit_upload_draw(&vwd->ve, cbuf);
+	vwdedit_upload_paint(&vwd->ve, cbuf);
 	// 2
 	vwdedit_blend(&vwd->ve, cbuf);
-
 	// 3
+	vwdedit_download_layer(&vwd->ve, cbuf, &vwd->patchdmg);
 	vwd->ve.dmg_paint = vwd->patchdmg;
-	vwdedit_download_layer(&vwd->ve, cbuf);
 	// 4
 	Vwdlayer *vllayer = vwdlayout_ldx(&vwd->vl, (size_t)vwd->focus);
-	vkhelper2_barrier_dst(cbuf, &vwd->ve.layer);
-	vkhelper2_barrier_src(cbuf, &vllayer->image);
 	vwdedit_copy(cbuf, &vwd->patchdmg, &vllayer->image, &vwd->ve.layer);
 	vkhelper2_barrier_shader(cbuf, &vllayer->image);
 	vkhelper2_barrier_shader(cbuf, &vwd->ve.layer);
+}
+
+static void sync_undo(Vwdraw *vwd, VkCommandBuffer cbuf, Dmgrect *rect) {
+	// first round blending, submit drawing in prev frame
+	// 1
+	vwdedit_upload_paint(&vwd->ve, cbuf);
+	// 2
+	vwdedit_blend(&vwd->ve, cbuf);
+	// 3
+	vwdedit_download_layer(&vwd->ve, cbuf, rect);
 }
 
 // GPU-CPU sync part, make it as fast as possible
 // maybe separate render thread?
 static void sync(Vwdraw *vwd) {
 	imgview_render_prepare(&vwd->iv);
-	vwdedit_upload_draw(&vwd->ve, vwd->iv.vks.cbuf);
+	vwdedit_upload_paint(&vwd->ve, vwd->iv.vks.cbuf);
 	vwdedit_blend(&vwd->ve, vwd->iv.vks.cbuf);
 	vwdlayout_build_command(&vwd->vl, vwd->iv.vks.device, vwd->iv.vks.cbuf);
 	vwdview_build_camera(&vwd->vv, vwd->iv.uniform.view);
@@ -35,7 +42,10 @@ static void sync(Vwdraw *vwd) {
 }
 
 static void focus(Vwdraw *vwd, int32_t ldx) {
-	printf("focusing %d\n", ldx);
+	if (ldx == vwd->focus) { return; }
+	vwd->focus = ldx;
+	if (ldx < 0) { return; }
+	assert((size_t)ldx < vwd->vl.layers.len);
 	vwd->player = vwdlayout_ldx(&vwd->vl, (size_t)ldx);
 	vwdedit_setup(&vwd->ve, &vwd->iv.vks, &vwd->player->image,
 		(void**)&vwd->paint.data,
@@ -49,7 +59,8 @@ static void focus(Vwdraw *vwd, int32_t ldx) {
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
 	vwdedit_download_layout_layer(&vwd->ve, cbuf, &vwd->player->image);
 	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
-	printf("focus: set up %ux%u\n", vwd->paint.width, vwd->paint.height);
+	printf("focus %d: set up %ux%u\n", ldx,
+		vwd->paint.width, vwd->paint.height);
 }
 
 static void do_init(Vwdraw *vwd, Dmgrect *canvasvp) {
@@ -91,23 +102,30 @@ static void submit(void *data) {
 	dmgrect_init(&vwd->patchdmg);
 }
 
-static void undo(void *data) {
+static void undo(void *data, bool undo) {
 	Vwdraw *vwd = data;
-
-	// TODO: focus the undo layer
-	// int32_t ldx = vwdraw_plist_walk_layer(&vwd->plist);
-	// focus(vwd, ldx);
-
 	Dmgrect dmg;
-	if (vwdraw_plist_walk_update(
-		&dmg, &vwd->plist, &vwd->layer, true) != 0
-	) { return; }
-	imgview_try_present(&vwd->iv);
+	int32_t ldx = vwdraw_plist_walk_layer(&vwd->plist, &dmg, undo);
+	if (ldx < 0) { return; }
+	focus(vwd, ldx);
+
+	// fetching
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
-	vwdedit_upload_undo(&vwd->ve, cbuf, &dmg);
+	sync_undo(vwd, cbuf, &dmg);
 	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
-	printf("undo\n");
+
+	if (vwdraw_plist_walk_update(&vwd->plist, &vwd->layer, undo) != 0) {
+		return;
+	}
+	imgview_try_present(&vwd->iv);
+
+	// writing
+	cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+	vwdedit_upload_layer(&vwd->ve, cbuf, &dmg);
+	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+
 	dmgrect_union(&vwd->ve.dmg_paint, &dmg);
+	// vwdraw_plist_debug(&vwd->plist);
 }
 
 static void whole_lyc_to_damage(Dmgrect *dmg, VwdrawLyc *lyc) {
@@ -130,11 +148,10 @@ static void vwdraw_load_layer(Vwdraw *vwd, size_t ldx, VwdrawLyc *lyc) {
 	focus(vwd, (int32_t)ldx);
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
 	printf("copying lyc image to cpu buffer\n");
-	memcpy(vwd->paint.data, lyc->img.data,
-		4 * dmg.size[0] * dmg.size[1]);
+	memcpy(vwd->layer.data, lyc->img.data, 4 * dmg.size[0] * dmg.size[1]);
 	printf("uploading cpu buffer to paint\n");
 	vwdedit_damage_all(&vwd->ve);
-	vwdedit_upload_draw(&vwd->ve, cbuf);
+	vwdedit_upload_layer(&vwd->ve, cbuf, &dmg);
 	// direct copy
 	printf("blend paint to focus layer\n");
 	vwdedit_blend(&vwd->ve, cbuf);
@@ -145,6 +162,7 @@ static void vwdraw_load_layer(Vwdraw *vwd, size_t ldx, VwdrawLyc *lyc) {
 
 void vwdraw_init(Vwdraw *vwd, char *path) {
 	// 1. load Lyc
+	vwd->focus = -1; // during layer loading layers should be focused 1 by 1
 	VwdrawLyc *lyc = NULL;
 	size_t llen = vwdraw_lyc_load(&lyc, path);
 	assert(llen > 0);
@@ -167,8 +185,7 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 	free(lyc);
 
 	// 2. initial focus
-	vwd->focus = 0;
-	focus(vwd, vwd->focus);
+	focus(vwd, 0);
 
 	// 3. configure brush
 	sib_simple_config(&vwd->brush);

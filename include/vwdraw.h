@@ -43,9 +43,8 @@ void vwdraw_plist_init(VwdrawPlist *plist);
 void vwdraw_plist_deinit(VwdrawPlist *plist);
 void vwdraw_plist_record_update(VwdrawPlist *plist,
 	int32_t ldx, uint32_t area[4], Simpleimg *img);
-int32_t vwdraw_plist_walk_layer(VwdrawPlist *plist);
-int32_t vwdraw_plist_walk_update(Dmgrect *dmg,
-	VwdrawPlist *plist, Simpleimg *img, bool undo);
+int32_t vwdraw_plist_walk_layer(VwdrawPlist *plist, Dmgrect *dmg, bool undo);
+int32_t vwdraw_plist_walk_update(VwdrawPlist *plist, Simpleimg *img, bool undo);
 
 typedef struct {
 	SibSimple brush;
