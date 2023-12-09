@@ -1,7 +1,11 @@
 # 0.1 milestone
-submit/undo
-layer creation/adjust
 project export
-eraser shader(alpha removal)
-tool key binding(eraser)
+tool major parameter(size) adjust with alt+left
+layer creation/adjust
+layout adjust
+undo/redo layer/layout
+
+# 0.1.1 milestone
 smooth: first derivative continuity
+cursor plot(plot in vulkan, hide wayland cursor)
+color picker(on canvas)

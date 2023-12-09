@@ -63,6 +63,21 @@ static void focus(Vwdraw *vwd, int32_t ldx) {
 		vwd->paint.width, vwd->paint.height);
 }
 
+static void key(void *data, uint8_t key) {
+	Vwdraw *vwd = data;
+	if (key == 'e') {
+		printf("tool: eraser\n");
+		sib_simple_config_eraser(&vwd->brush);
+		vwd->ve.pidx = 1;
+	} else if (key == 'a') {
+		sib_simple_config(&vwd->brush);
+		printf("tool: pen\n");
+		vwd->ve.pidx = 0;
+	} else {
+		return;
+	}
+}
+
 static void do_init(Vwdraw *vwd, Dmgrect *canvasvp) {
 	vwdview_init(&vwd->vv);
 	imgview_init(&vwd->iv, vwd->vv.wew.wl.display,
@@ -181,6 +196,7 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 		(float)lyc[0].img.height / 2;
 	vwd->vv.cb_submit = submit;
 	vwd->vv.cb_undo = undo;
+	vwd->vv.cb_key = key;
 	vwd->vv.data = (void*)vwd;
 	free(lyc);
 
