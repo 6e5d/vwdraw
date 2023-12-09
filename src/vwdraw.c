@@ -4,45 +4,29 @@
 #include "../../vkstatic/include/vkstatic.h"
 #include "../include/vwdraw.h"
 
-// transfer barrier
-static void tb(VkCommandBuffer cbuf, VkImageLayout layout, Vkhelper2Image *img
-) {
-	vkhelper2_barrier(cbuf, layout,
-		VK_PIPELINE_STAGE_TRANSFER_BIT,
-		VK_PIPELINE_STAGE_TRANSFER_BIT,
-		img);
-}
-
 static void sync_submit(Vwdraw *vwd, VkCommandBuffer cbuf) {
+	// first round blending, submit drawing in prev frame
 	// 1
 	vwdedit_upload_draw(&vwd->ve, cbuf);
 	// 2
 	vwdedit_blend(&vwd->ve, cbuf);
+
+	// 3
+	vwd->ve.dmg_paint = vwd->patchdmg;
+	vwdedit_download_layer(&vwd->ve, cbuf);
 	// 4
 	Vwdlayer *vllayer = vwdlayout_ldx(&vwd->vl, (size_t)vwd->focus);
-	tb(cbuf, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &vwd->ve.layer);
-	tb(cbuf, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, &vllayer->image);
-	vwdedit_copy(cbuf, &vwd->output, &vllayer->image, &vwd->ve.layer);
-	tb(cbuf, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, &vllayer->image);
-	tb(cbuf, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, &vwd->ve.layer);
+	vkhelper2_barrier_dst(cbuf, &vwd->ve.layer);
+	vkhelper2_barrier_src(cbuf, &vllayer->image);
+	vwdedit_copy(cbuf, &vwd->patchdmg, &vllayer->image, &vwd->ve.layer);
+	vkhelper2_barrier_shader(cbuf, &vllayer->image);
+	vkhelper2_barrier_shader(cbuf, &vwd->ve.layer);
 }
 
 // GPU-CPU sync part, make it as fast as possible
 // maybe separate render thread?
 static void sync(Vwdraw *vwd) {
 	imgview_render_prepare(&vwd->iv);
-	if (vwd->submit) {
-		VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
-		sync_submit(vwd, cbuf);
-		vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
-		// 5
-		simpleimg_clear(&vwd->paint,
-			(uint32_t)vwd->output.offset[0],
-			(uint32_t)vwd->output.offset[1],
-			vwd->output.size[0],
-			vwd->output.size[1]);
-		vwd->ve.dmg_paint = vwd->output;
-	}
 	vwdedit_upload_draw(&vwd->ve, vwd->iv.vks.cbuf);
 	vwdedit_blend(&vwd->ve, vwd->iv.vks.cbuf);
 	vwdlayout_build_command(&vwd->vl, vwd->iv.vks.device, vwd->iv.vks.cbuf);
@@ -68,45 +52,86 @@ static void focus(Vwdraw *vwd, int32_t ldx) {
 	printf("focus: set up %ux%u\n", vwd->paint.width, vwd->paint.height);
 }
 
-static void do_init(Vwdraw *vwd) {
+static void do_init(Vwdraw *vwd, Dmgrect *canvasvp) {
 	vwdview_init(&vwd->vv);
-	imgview_init(&vwd->iv,
-		vwd->vv.wew.wl.display, vwd->vv.wew.wl.surface, &vwd->output);
-	vwdlayout_init(&vwd->vl, &vwd->iv.vks, &vwd->output);
+	imgview_init(&vwd->iv, vwd->vv.wew.wl.display,
+		vwd->vv.wew.wl.surface, canvasvp);
+	vwdlayout_init(&vwd->vl, &vwd->iv.vks, canvasvp);
 	vwdedit_init(&vwd->ve, vwd->iv.vks.device);
 	vwdraw_plist_init(&vwd->plist);
 }
 
-static void submit(void *data) {
-	Vwdraw *vwd = data;
-	if (vwd->submit) {
-		printf("WARN: double submission in 1 frame\n");
-	}
-	vwd->submit = true;
+static uint32_t i2u(int32_t v) {
+	assert(v >= 0);
+	return (uint32_t)v;
 }
 
-static void whole_lyc_to_damage(Vwdraw *vwd, VwdrawLyc *lyc) {
+static void submit(void *data) {
+	Vwdraw *vwd = data;
+	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
+	if (dmgrect_is_empty(&vwd->patchdmg)) { return; }
+	dmgrect_init(&vwd->brush.pending);
+	imgview_try_present(&vwd->iv);
+	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+	sync_submit(vwd, cbuf);
+	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+	// 5
+	simpleimg_clear(&vwd->paint,
+		(uint32_t)vwd->patchdmg.offset[0],
+		(uint32_t)vwd->patchdmg.offset[1],
+		vwd->patchdmg.size[0],
+		vwd->patchdmg.size[1]);
+
+	uint32_t area[4] = {
+		i2u(vwd->patchdmg.offset[0]), i2u(vwd->patchdmg.offset[1]),
+		vwd->patchdmg.size[0], vwd->patchdmg.size[1],
+	};
+	vwdraw_plist_record_update(&vwd->plist, vwd->focus,
+		area, &vwd->layer);
+	dmgrect_init(&vwd->patchdmg);
+}
+
+static void undo(void *data) {
+	Vwdraw *vwd = data;
+
+	// TODO: focus the undo layer
+	// int32_t ldx = vwdraw_plist_walk_layer(&vwd->plist);
+	// focus(vwd, ldx);
+
+	Dmgrect dmg;
+	if (vwdraw_plist_walk_update(
+		&dmg, &vwd->plist, &vwd->layer, true) != 0
+	) { return; }
+	imgview_try_present(&vwd->iv);
+	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+	vwdedit_upload_undo(&vwd->ve, cbuf, &dmg);
+	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+	printf("undo\n");
+	dmgrect_union(&vwd->ve.dmg_paint, &dmg);
+}
+
+static void whole_lyc_to_damage(Dmgrect *dmg, VwdrawLyc *lyc) {
 	int32_t x = lyc->offset[0];
 	int32_t y = lyc->offset[1];
 	uint32_t w = lyc->img.width;
 	uint32_t h = lyc->img.height;
-	vwd->output = (Dmgrect) {
+	*dmg = (Dmgrect) {
 		.offset = {x, y},
 		.size = {w, h},
 	};
 }
 
 static void vwdraw_load_layer(Vwdraw *vwd, size_t ldx, VwdrawLyc *lyc) {
-	printf("preparing layer %zu\n", ldx);
-	whole_lyc_to_damage(vwd, lyc);
+	Dmgrect dmg;
+	whole_lyc_to_damage(&dmg, lyc);
 	vwdlayout_insert_layer(&vwd->vl, &vwd->iv.vks, ldx,
-		vwd->output.offset[0], vwd->output.offset[1],
-		vwd->output.size[0], vwd->output.size[1]);
+		dmg.offset[0], dmg.offset[1],
+		dmg.size[0], dmg.size[1]);
 	focus(vwd, (int32_t)ldx);
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
 	printf("copying lyc image to cpu buffer\n");
 	memcpy(vwd->paint.data, lyc->img.data,
-		4 * vwd->output.size[0] * vwd->output.size[1]);
+		4 * dmg.size[0] * dmg.size[1]);
 	printf("uploading cpu buffer to paint\n");
 	vwdedit_damage_all(&vwd->ve);
 	vwdedit_upload_draw(&vwd->ve, cbuf);
@@ -123,8 +148,8 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 	VwdrawLyc *lyc = NULL;
 	size_t llen = vwdraw_lyc_load(&lyc, path);
 	assert(llen > 0);
-	whole_lyc_to_damage(vwd, &lyc[0]);
-	do_init(vwd);
+	whole_lyc_to_damage(&vwd->ve.dmg_paint, &lyc[0]);
+	do_init(vwd, &vwd->ve.dmg_paint);
 	for (size_t ldx = 0; ldx < llen; ldx += 1) {
 		vwdraw_load_layer(vwd, ldx, &lyc[ldx]);
 	}
@@ -136,6 +161,9 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 		(float)lyc[0].img.width / 2;
 	vwd->vv.camcon.y = (float)lyc[0].offset[1] -
 		(float)lyc[0].img.height / 2;
+	vwd->vv.cb_submit = submit;
+	vwd->vv.cb_undo = undo;
+	vwd->vv.data = (void*)vwd;
 	free(lyc);
 
 	// 2. initial focus
@@ -145,11 +173,9 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 	// 3. configure brush
 	sib_simple_config(&vwd->brush);
 	vwd->brush.canvas = &vwd->paint;
-	vwd->brush.callback = submit;
-	vwd->brush.data = (void*)vwd;
 	dmgrect_init(&vwd->brush.pending);
-	dmgrect_init(&vwd->output);
-	vwd->vv.data = (void*)&vwd->brush;
+	dmgrect_init(&vwd->patchdmg);
+	vwd->vv.brush = (void*)&vwd->brush;
 	vwd->vv.ifdraw = sib_simple_ifdraw();
 }
 
@@ -159,12 +185,7 @@ void vwdraw_deinit(Vwdraw *vwd) {
 	vwdlayout_deinit(&vwd->vl, vwd->iv.vks.device);
 	imgview_deinit(&vwd->iv);
 	vwdview_deinit(&vwd->vv);
-	vwdraw_plist_init(&vwd->plist);
-}
-
-static uint32_t i2u(int32_t v) {
-	assert(v >= 0);
-	return (uint32_t)v;
+	vwdraw_plist_deinit(&vwd->plist);
 }
 
 void vwdraw_go(Vwdraw *vwd) {
@@ -174,22 +195,12 @@ void vwdraw_go(Vwdraw *vwd) {
 		imgview_resize(&vwd->iv, vwd->vv.wew.wl.surface,
 			vwd->vv.window_size[0], vwd->vv.window_size[1]);
 	}
-	vwd->ve.dmg_paint = vwd->brush.pending;
-	dmgrect_union(&vwd->output, &vwd->brush.pending);
+	// dmg source: draw + undo
+	dmgrect_union(&vwd->ve.dmg_paint, &vwd->brush.pending);
+	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	dmgrect_init(&vwd->brush.pending);
 	sync(vwd);
-	if (vwd->submit) {
-		vwd->submit = false;
-		uint32_t area[4] = {
-			i2u(vwd->output.offset[0]), i2u(vwd->output.offset[1]),
-			vwd->output.size[0], vwd->output.size[1],
-		};
-		vwdraw_plist_record_update(&vwd->plist,
-			vwd->focus,
-			area, &vwd->layer);
-		dmgrect_init(&vwd->output);
-		vwdraw_plist_debug(&vwd->plist);
-	}
+	dmgrect_init(&vwd->ve.dmg_paint);
 
 	uint64_t dt = chrono_timer_finish(&vwd->timer);
 	if (dt < FTIME) {
