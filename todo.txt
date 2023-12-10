@@ -1,7 +1,7 @@
 # 0.1 milestone
 clean code
 
-# layer
+# later
 layer creation/adjust
 layout adjust
 undo/redo layer/layout
@@ -9,3 +9,4 @@ smooth: first derivative continuity
 color picker(on canvas)
 layer picker
 layer solo
+damage visualization(flashing), check if the flush area is too large

@@ -1,8 +1,11 @@
-import numpy
+import numpy, os
 from PIL import Image, ImageDraw
 from pathlib import Path
 
 pp = Path(__file__).parent
+for file in pp.iterdir():
+	if file.suffix == ".png":
+		os.remove(file)
 def run(p, c, o, i):
 	image = Image.new("RGBA", (p[2] + 1, p[3] + 1), (0, 0, 0, 0))
 	draw = ImageDraw.Draw(image)
@@ -17,8 +20,8 @@ a[s - 3,:] = 0
 a[:,2] = 0
 a[:,s - 3] = 0
 image = Image.fromarray(a).convert("RGBA")
-image.putalpha(192)
+image.putalpha(255)
 image.save(pp / f"0_-100_-200.png")
-run((0, 0, 200, 200), (0, 255, 0, 128), (20, 0), 1)
+run((0, 0, 200, 200), (0, 255, 0, 128), (100, 0), 1)
 run((0, 0, 200, 200), (255, 0, 0, 128), (0, 0), 2)
-run((0, 0, 200, 200), (0, 0, 255, 128), (0, 100), 3)
+run((0, 0, 200, 200), (0, 0, 255, 128), (50, 100), 3)

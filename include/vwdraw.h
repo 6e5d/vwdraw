@@ -1,3 +1,5 @@
+#include <vulkan/vulkan.h>
+
 #ifndef INCLUDEGUARD_VWDRAW
 #define INCLUDEGUARD_VWDRAW
 
@@ -63,7 +65,9 @@ typedef struct {
 	int32_t focus; // focus
 } Vwdraw;
 void vwdraw_init(Vwdraw *vwd, char *path);
+void vwdraw_focus(Vwdraw *vwd, int32_t ldx);
 void vwdraw_deinit(Vwdraw *vwd);
 void vwdraw_go(Vwdraw *vwd);
 void vwdraw_plist_debug(VwdrawPlist *plist);
+void vwdraw_flush_pending_paint(Vwdraw *vwd, VkCommandBuffer cbuf);
 #endif
