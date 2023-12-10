@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <dirent.h>
+#include <unistd.h>
 
 #include "../include/vwdraw.h"
 #include "../../vector/include/vector.h"
@@ -18,6 +19,20 @@ static int compare(const void *a, const void *b) {
 	return ia->id - ib->id;
 }
 
+void vwdraw_lyc_clear_png(char *path) {
+	DIR *dp;
+	struct dirent *ep;
+	char pngfile[4096];
+	assert((dp = opendir(path)));
+	while ((ep = readdir(dp))) {
+		char *p = strrchr(ep->d_name, '.');
+		if (0 != strcmp(".png", p)) { continue; }
+		printf("rm %s\n", ep->d_name);
+		snprintf(pngfile, 4096, "%s/%s", path, ep->d_name);
+		assert(0 == unlink(pngfile));
+	}
+}
+
 size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 	char *abspath = ppath_abs_new(path);
 	DIR *dp;
@@ -28,7 +43,7 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 	while ((ep = readdir(dp))) {
 		char *p = strrchr(ep->d_name, '.');
 		if (p == NULL) { continue; }
-		if ((strcmp(".png", p))) { continue; }
+		if (0 != strcmp(".png", p)) { continue; }
 		char *saveptr;
 		char *stok = strdup(ep->d_name);
 		char *idx = strtok_r(stok, "_", &saveptr);

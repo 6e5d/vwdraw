@@ -1,11 +1,11 @@
 # 0.1 milestone
-project export
+cursor plot(plot in vulkan, hide wayland cursor)
 tool major parameter(size) adjust with alt+left
+layer border plot
 layer creation/adjust
 layout adjust
 undo/redo layer/layout
 
-# 0.1.1 milestone
+# later
 smooth: first derivative continuity
-cursor plot(plot in vulkan, hide wayland cursor)
 color picker(on canvas)

@@ -17,6 +17,7 @@ typedef struct {
 	int32_t offset[2];
 	Simpleimg img;
 } VwdrawLyc;
+void vwdraw_lyc_clear_png(char *path);
 size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path);
 void vwdraw_lyc_deinit(VwdrawLyc *lycp);
 
@@ -47,6 +48,7 @@ int32_t vwdraw_plist_walk_layer(VwdrawPlist *plist, Dmgrect *dmg, bool undo);
 int32_t vwdraw_plist_walk_update(VwdrawPlist *plist, Simpleimg *img, bool undo);
 
 typedef struct {
+	char *path;
 	SibSimple brush;
 	Imgview iv;
 	Vwdview vv;

@@ -63,8 +63,38 @@ static void focus(Vwdraw *vwd, int32_t ldx) {
 		vwd->paint.width, vwd->paint.height);
 }
 
-static void key(void *data, uint8_t key) {
+static void simpleimg_to_dmg(Simpleimg *img, Dmgrect *rect) {
+	rect->offset[0] = 0; rect->offset[1] = 0;
+	rect->size[0] = img->width;
+	rect->size[1] = img->height;
+}
+
+static void vwdraw_save(Vwdraw *vwd) {
+	vwdraw_lyc_clear_png(vwd->path);
+	Dmgrect rect;
+	char pngfile[4096];
+	for (size_t ldx = 0; ldx < vwd->vl.layers.len; ldx += 1) {
+		printf("saving layer: %zu\n", ldx);
+		focus(vwd, (int32_t)ldx);
+		VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+		simpleimg_to_dmg(&vwd->layer, &rect);
+		vwdedit_download_layer(&vwd->ve, cbuf, &rect);
+		vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+		snprintf(pngfile, 4096, "%s/%zu_%d_%d.png",
+			vwd->path,
+			ldx,
+			vwd->player->offset[0],
+			vwd->player->offset[1]);
+		simpleimg_save(&vwd->layer, pngfile);
+	}
+}
+
+static void key(void *data, uint8_t key, bool pressed) {
 	Vwdraw *vwd = data;
+	if (key == WLEZWRAP_PROXIMITY) {
+		vwd->iv.show_cursor = pressed;
+	}
+	if (!pressed) { return; }
 	if (key == 'e') {
 		printf("tool: eraser\n");
 		sib_simple_config_eraser(&vwd->brush);
@@ -73,6 +103,11 @@ static void key(void *data, uint8_t key) {
 		sib_simple_config(&vwd->brush);
 		printf("tool: pen\n");
 		vwd->ve.pidx = 0;
+	} else if (key == 'u') {
+		imgview_try_present(&vwd->iv);
+		int32_t focus_save = vwd->focus;
+		vwdraw_save(vwd);
+		focus(vwd, focus_save);
 	} else {
 		return;
 	}
@@ -180,6 +215,7 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 	vwd->focus = -1; // during layer loading layers should be focused 1 by 1
 	VwdrawLyc *lyc = NULL;
 	size_t llen = vwdraw_lyc_load(&lyc, path);
+	vwd->path = strdup(path);
 	assert(llen > 0);
 	whole_lyc_to_damage(&vwd->ve.dmg_paint, &lyc[0]);
 	do_init(vwd, &vwd->ve.dmg_paint);
@@ -219,6 +255,7 @@ void vwdraw_deinit(Vwdraw *vwd) {
 	imgview_deinit(&vwd->iv);
 	vwdview_deinit(&vwd->vv);
 	vwdraw_plist_deinit(&vwd->plist);
+	free(vwd->path);
 }
 
 void vwdraw_go(Vwdraw *vwd) {
@@ -232,6 +269,8 @@ void vwdraw_go(Vwdraw *vwd) {
 	dmgrect_union(&vwd->ve.dmg_paint, &vwd->brush.pending);
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	dmgrect_init(&vwd->brush.pending);
+	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1],
+		vwd->brush.size_b + vwd->brush.size_k);
 	sync(vwd);
 	dmgrect_init(&vwd->ve.dmg_paint);
 
