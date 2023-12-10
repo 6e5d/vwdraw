@@ -269,8 +269,13 @@ void vwdraw_go(Vwdraw *vwd) {
 	dmgrect_union(&vwd->ve.dmg_paint, &vwd->brush.pending);
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	dmgrect_init(&vwd->brush.pending);
-	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1],
-		vwd->brush.size_b + vwd->brush.size_k);
+
+	float k = vwd->vv.pps[2];
+	if (vwd->vv.input_state != 4) { k = 0.5f; }
+	float psize = k * vwd->brush.size_k + vwd->brush.size_b;
+	psize *= vwd->brush.size_scale;
+	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1], psize);
+
 	sync(vwd);
 	dmgrect_init(&vwd->ve.dmg_paint);
 

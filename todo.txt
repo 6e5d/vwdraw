@@ -1,6 +1,4 @@
 # 0.1 milestone
-cursor plot(plot in vulkan, hide wayland cursor)
-tool major parameter(size) adjust with alt+left
 layer border plot
 layer creation/adjust
 layout adjust
