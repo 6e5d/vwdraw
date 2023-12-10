@@ -1,3 +1,4 @@
+#include <cglm/cglm.h>
 #include <vulkan/vulkan.h>
 
 #include "../../vkhelper2/include/vkhelper2.h"
@@ -108,6 +109,18 @@ static void key(void *data, uint8_t key, bool pressed) {
 		int32_t focus_save = vwd->focus;
 		vwdraw_save(vwd);
 		focus(vwd, focus_save);
+	} else if (key == 'k') {
+		if (vwd->focus < (int32_t)vwd->vl.layers.len - 1) {
+			focus(vwd, vwd->focus + 1);
+		} else {
+			fprintf(stderr, "already focusing top layer\n");
+		}
+	} else if (key == 'j') {
+		if (vwd->focus > 0) {
+			focus(vwd, vwd->focus - 1);
+		} else {
+			fprintf(stderr, "already focusing bot layer\n");
+		}
 	} else {
 		return;
 	}
@@ -201,6 +214,9 @@ static void vwdraw_load_layer(Vwdraw *vwd, size_t ldx, VwdrawLyc *lyc) {
 	memcpy(vwd->layer.data, lyc->img.data, 4 * dmg.size[0] * dmg.size[1]);
 	printf("uploading cpu buffer to paint\n");
 	vwdedit_damage_all(&vwd->ve);
+	// FIXME
+	dmg.offset[0] = 0;
+	dmg.offset[1] = 0;
 	vwdedit_upload_layer(&vwd->ve, cbuf, &dmg);
 	// direct copy
 	printf("blend paint to focus layer\n");
@@ -258,6 +274,35 @@ void vwdraw_deinit(Vwdraw *vwd) {
 	free(vwd->path);
 }
 
+static void vwdraw_draw_layer_border(Vwdraw *vwd) {
+	int32_t x1 = vwd->player->offset[0];
+	int32_t y1 = vwd->player->offset[1];
+	int32_t x2 = x1 + (int32_t)vwd->player->image.size[0];
+	int32_t y2 = y1 + (int32_t)vwd->player->image.size[1];
+	float wx = (float)vwd->vv.window_size[0] / 2.0f;
+	float wy = (float)vwd->vv.window_size[1] / 2.0f;
+	vec4 p1 = {(float)x1, (float)y1, 0.0, 1.0};
+	vec4 p2 = {(float)x2, (float)y1, 0.0, 1.0};
+	vec4 p3 = {(float)x1, (float)y2, 0.0, 1.0};
+	vec4 p4 = {(float)x2, (float)y2, 0.0, 1.0};
+	glm_mat4_mulv(vwd->iv.uniform.view, p1, p1);
+	glm_mat4_mulv(vwd->iv.uniform.view, p2, p2);
+	glm_mat4_mulv(vwd->iv.uniform.view, p3, p3);
+	glm_mat4_mulv(vwd->iv.uniform.view, p4, p4);
+	int32_t q1x = (int32_t)(p1[0] / p1[3] + wx);
+	int32_t q1y = (int32_t)(p1[1] / p1[3] + wy);
+	int32_t q2x = (int32_t)(p2[0] / p2[3] + wx);
+	int32_t q2y = (int32_t)(p2[1] / p2[3] + wy);
+	int32_t q3x = (int32_t)(p3[0] / p3[3] + wx);
+	int32_t q3y = (int32_t)(p3[1] / p3[3] + wy);
+	int32_t q4x = (int32_t)(p4[0] / p4[3] + wx);
+	int32_t q4y = (int32_t)(p4[1] / p4[3] + wy);
+	imgview_draw_line(&vwd->iv, q1x, q1y, q2x, q2y);
+	imgview_draw_line(&vwd->iv, q1x, q1y, q3x, q3y);
+	imgview_draw_line(&vwd->iv, q2x, q2y, q4x, q4y);
+	imgview_draw_line(&vwd->iv, q3x, q3y, q4x, q4y);
+}
+
 void vwdraw_go(Vwdraw *vwd) {
 	static const uint64_t FTIME = 10000000;
 	chrono_timer_reset(&vwd->timer);
@@ -275,6 +320,8 @@ void vwdraw_go(Vwdraw *vwd) {
 	float psize = k * vwd->brush.size_k + vwd->brush.size_b;
 	psize *= vwd->brush.size_scale;
 	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1], psize);
+
+	vwdraw_draw_layer_border(vwd);
 
 	sync(vwd);
 	dmgrect_init(&vwd->ve.dmg_paint);

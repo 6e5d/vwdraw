@@ -1,9 +1,11 @@
 # 0.1 milestone
-layer border plot
+clean code
+
+# layer
 layer creation/adjust
 layout adjust
 undo/redo layer/layout
-
-# later
 smooth: first derivative continuity
 color picker(on canvas)
+layer picker
+layer solo
