@@ -27,7 +27,7 @@ static void vwdraw_draw_dots(Vwdraw *vwd) {
 	float k = vwd->vv.pps[2];
 	if (vwd->vv.input_state != 4) { k = 1.0f; }
 	float psize = k * vwd->brush.size_k + vwd->brush.size_b;
-	psize *= vwd->brush.size_scale;
+	psize *= vwd->brush.size_scale * vwd->vv.camcon.k;
 	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1], psize);
 
 	int32_t x1 = vwd->player->offset[0];

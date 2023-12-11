@@ -1,13 +1,17 @@
 # 0.1 milestone
+output blended image, layer only load number started image
 clean code
 
 # later
 layer solo
 separated tool + simple key configuration
-layer creation/adjust
+layer creation/adjust, visibility
 layout adjust
 undo/redo layer/layout
 smooth: first derivative continuity
 color picker(on canvas)
 layer picker
+select all
+select area
+split layer
 damage visualization(flashing), check if the flush area is too large

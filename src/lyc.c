@@ -26,6 +26,7 @@ void vwdraw_lyc_clear_png(char *path) {
 	assert((dp = opendir(path)));
 	while ((ep = readdir(dp))) {
 		char *p = strrchr(ep->d_name, '.');
+		if (p == NULL) { continue; }
 		if (0 != strcmp(".png", p)) { continue; }
 		printf("rm %s\n", ep->d_name);
 		snprintf(pngfile, 4096, "%s/%s", path, ep->d_name);
@@ -46,9 +47,14 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 		if (0 != strcmp(".png", p)) { continue; }
 		char *saveptr;
 		char *stok = strdup(ep->d_name);
-		char *idx = strtok_r(stok, "_", &saveptr);
 		Info info = {0};
-		info.id = atoi(idx);
+		char *endptr = NULL;
+		char *idx = strtok_r(stok, "_", &saveptr);
+		info.id = (int32_t)strtol(idx, &endptr, 10);
+		if (*endptr != '\0') {
+			printf("skipping %s\n", ep->d_name);
+			continue;
+		}
 		idx = strtok_r(NULL, "_", &saveptr);
 		info.ox = atoi(idx);
 		idx = strtok_r(NULL, "_.", &saveptr);

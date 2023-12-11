@@ -72,24 +72,33 @@ static void simpleimg_to_dmg(Simpleimg *img, Dmgrect *rect) {
 	rect->size[1] = img->height;
 }
 
-static void vwdraw_save(Vwdraw *vwd) {
-	vwdraw_lyc_clear_png(vwd->path);
+static void vwdraw_save_layer(Vwdraw *vwd, char *filename) {
 	Dmgrect rect;
+	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+	simpleimg_to_dmg(&vwd->layer, &rect);
+	vwdedit_download_layer(&vwd->ve, cbuf, &rect);
+	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+	simpleimg_save(&vwd->layer, filename);
+}
+
+static void vwdraw_save(Vwdraw *vwd) {
 	char pngfile[4096];
+	vwdraw_lyc_clear_png(vwd->path);
 	for (size_t ldx = 0; ldx < vwd->vl.layers.len; ldx += 1) {
 		printf("saving layer: %zu\n", ldx);
 		vwdraw_focus(vwd, (int32_t)ldx);
-		VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
-		simpleimg_to_dmg(&vwd->layer, &rect);
-		vwdedit_download_layer(&vwd->ve, cbuf, &rect);
-		vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
 		snprintf(pngfile, 4096, "%s/%zu_%d_%d.png",
 			vwd->path,
 			ldx,
 			vwd->player->offset[0],
 			vwd->player->offset[1]);
-		simpleimg_save(&vwd->layer, pngfile);
+		vwdraw_save_layer(vwd, pngfile);
 	}
+	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+	vwdlayout_download_output(&vwd->vl, cbuf);
+	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+	snprintf(pngfile, 4096, "%s/output.png", vwd->path);
+	simpleimg_save(&vwd->vl.output_img, pngfile);
 }
 
 void vwdraw_cb_key(void *data, uint8_t key, bool pressed) {

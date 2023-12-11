@@ -33,7 +33,20 @@ static void vwdraw_load_layer(Vwdraw *vwd, size_t ldx, VwdrawLyc *lyc) {
 	vwdraw_lyc_deinit(lyc);
 }
 
+static void vwdraw_focus2(Vwdraw *vwd, Vwdlayer *layer) {
+	vwd->paint.width = layer->image.size[0];
+	vwd->paint.height = layer->image.size[1];
+	vwd->layer.width = layer->image.size[0];
+	vwd->layer.height = layer->image.size[1];
+	vwd->vv.offset[0] = layer->offset[0];
+	vwd->vv.offset[1] = layer->offset[1];
+	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
+	vwdedit_download_layout_layer(&vwd->ve, cbuf, &layer->image);
+	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
+}
+
 void vwdraw_focus(Vwdraw *vwd, int32_t ldx) {
+	printf("focus %d\n", ldx);
 	if (ldx == vwd->focus) { return; }
 	vwd->focus = ldx;
 	if (ldx < 0) { return; }
@@ -42,17 +55,7 @@ void vwdraw_focus(Vwdraw *vwd, int32_t ldx) {
 	vwdedit_setup(&vwd->ve, &vwd->iv.vks, &vwd->player->image,
 		(void**)&vwd->paint.data,
 		(void**)&vwd->layer.data);
-	vwd->paint.width = vwd->player->image.size[0];
-	vwd->paint.height = vwd->player->image.size[1];
-	vwd->layer.width = vwd->player->image.size[0];
-	vwd->layer.height = vwd->player->image.size[1];
-	vwd->vv.offset[0] = vwd->player->offset[0];
-	vwd->vv.offset[1] = vwd->player->offset[1];
-	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
-	vwdedit_download_layout_layer(&vwd->ve, cbuf, &vwd->player->image);
-	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
-	printf("focus %d: set up %ux%u\n", ldx,
-		vwd->paint.width, vwd->paint.height);
+	vwdraw_focus2(vwd, vwd->player);
 }
 
 void vwdraw_deinit(Vwdraw *vwd) {
@@ -103,7 +106,7 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 	free(lyc);
 
 	// 2. initial focus
-	vwdraw_focus(vwd, 0);
+	vwdraw_focus(vwd, (int32_t)llen - 1);
 
 	// 3. configure brush
 	sib_simple_config(&vwd->brush);
