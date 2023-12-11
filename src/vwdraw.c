@@ -5,8 +5,12 @@
 #include "../include/vwdraw.h"
 
 void vwdraw_flush_pending_paint(Vwdraw *vwd, VkCommandBuffer cbuf) {
-	vwdedit_upload_paint(&vwd->ve, cbuf, &vwd->brush.pending);
-	vwdedit_blend(&vwd->ve, cbuf, &vwd->brush.pending);
+	Dmgrect dmg = vwd->brush.pending;
+	dmgrect_union(&dmg, &vwd->submitundo);
+	vwdedit_upload_paint(&vwd->ve, cbuf, &dmg);
+	vwdedit_blend(&vwd->ve, cbuf, &dmg);
+	dmgrect_init(&vwd->brush.pending);
+	dmgrect_init(&vwd->submitundo);
 }
 
 // GPU-CPU sync part, make it as fast as possible
@@ -19,7 +23,13 @@ static void sync(Vwdraw *vwd) {
 	imgview_render(&vwd->iv, &vwd->vl.output.image);
 }
 
-static void vwdraw_draw_layer_border(Vwdraw *vwd) {
+static void vwdraw_draw_dots(Vwdraw *vwd) {
+	float k = vwd->vv.pps[2];
+	if (vwd->vv.input_state != 4) { k = 1.0f; }
+	float psize = k * vwd->brush.size_k + vwd->brush.size_b;
+	psize *= vwd->brush.size_scale;
+	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1], psize);
+
 	int32_t x1 = vwd->player->offset[0];
 	int32_t y1 = vwd->player->offset[1];
 	int32_t x2 = x1 + (int32_t)vwd->player->image.size[0];
@@ -55,18 +65,11 @@ void vwdraw_go(Vwdraw *vwd) {
 		imgview_resize(&vwd->iv, vwd->vv.wew.wl.surface,
 			vwd->vv.window_size[0], vwd->vv.window_size[1]);
 	}
-	// dmg source: draw + undo
+
+	vwdraw_draw_dots(vwd);
+
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
-
-	float k = vwd->vv.pps[2];
-	if (vwd->vv.input_state != 4) { k = 1.0f; }
-	float psize = k * vwd->brush.size_k + vwd->brush.size_b;
-	psize *= vwd->brush.size_scale;
-	imgview_draw_cursor(&vwd->iv, vwd->vv.pps[0], vwd->vv.pps[1], psize);
-
-	vwdraw_draw_layer_border(vwd);
 	sync(vwd);
-	dmgrect_init(&vwd->brush.pending);
 
 	uint64_t dt = chrono_timer_finish(&vwd->timer);
 	if (dt < FTIME) {

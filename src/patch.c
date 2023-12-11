@@ -1,4 +1,5 @@
 #include "../include/vwdraw.h"
+#include "../include/patch.h"
 
 // only the VwdrawUpdate need deinit
 static void vwdraw_patch_deinit(VwdrawPatch *p) {

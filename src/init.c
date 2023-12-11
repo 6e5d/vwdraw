@@ -1,5 +1,6 @@
 #include "../include/vwdraw.h"
 #include "../include/callback.h"
+#include "../include/patch.h"
 
 static void whole_lyc_to_damage(Dmgrect *dmg, VwdrawLyc *lyc) {
 	int32_t x = lyc->offset[0];
@@ -107,8 +108,9 @@ void vwdraw_init(Vwdraw *vwd, char *path) {
 	// 3. configure brush
 	sib_simple_config(&vwd->brush);
 	vwd->brush.canvas = &vwd->paint;
-	dmgrect_init(&vwd->brush.pending);
 	dmgrect_init(&vwd->patchdmg);
+	dmgrect_init(&vwd->submitundo);
+	dmgrect_init(&vwd->brush.pending);
 	vwd->vv.brush = (void*)&vwd->brush;
 	vwd->vv.ifdraw = sib_simple_ifdraw();
 }

@@ -1,5 +1,6 @@
 #include "../include/vwdraw.h"
 #include "../include/callback.h"
+#include "../include/patch.h"
 
 static uint32_t i2u(int32_t v) {
 	assert(v >= 0);
@@ -19,24 +20,22 @@ void vwdraw_cb_submit(void *data) {
 	Vwdraw *vwd = data;
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	if (dmgrect_is_empty(&vwd->patchdmg)) { return; }
-	dmgrect_init(&vwd->brush.pending);
 	imgview_try_present(&vwd->iv);
 	VkCommandBuffer cbuf = vkstatic_oneshot_begin(&vwd->iv.vks);
 	sync_submit(vwd, cbuf);
 	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
-	// 5
 	simpleimg_clear(&vwd->paint,
 		(uint32_t)vwd->patchdmg.offset[0],
 		(uint32_t)vwd->patchdmg.offset[1],
 		vwd->patchdmg.size[0],
 		vwd->patchdmg.size[1]);
-
 	uint32_t area[4] = {
 		i2u(vwd->patchdmg.offset[0]), i2u(vwd->patchdmg.offset[1]),
 		vwd->patchdmg.size[0], vwd->patchdmg.size[1],
 	};
 	vwdraw_plist_record_update(&vwd->plist, vwd->focus,
 		area, &vwd->layer);
+	vwd->submitundo = vwd->patchdmg;
 	dmgrect_init(&vwd->patchdmg);
 }
 
@@ -63,7 +62,7 @@ void vwdraw_cb_undo(void *data, bool undo) {
 	vwdedit_upload_layer(&vwd->ve, cbuf, &dmg);
 	vkstatic_oneshot_end(cbuf, &vwd->iv.vks);
 
-	vwd->brush.pending = dmg;
+	vwd->submitundo = dmg;
 	// vwdraw_plist_debug(&vwd->plist);
 }
 
