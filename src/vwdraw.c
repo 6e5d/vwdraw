@@ -65,12 +65,9 @@ void vwdraw_go(Vwdraw *vwd) {
 		imgview_resize(&vwd->iv, vwd->vv.wew.wl.surface,
 			vwd->vv.window_size[0], vwd->vv.window_size[1]);
 	}
-
 	vwdraw_draw_dots(vwd);
-
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	sync(vwd);
-
 	uint64_t dt = chrono_timer_finish(&vwd->timer);
 	if (dt < FTIME) {
 		chrono_sleep((uint32_t)(FTIME - dt));
