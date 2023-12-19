@@ -1,8 +1,12 @@
 #include <cglm/cglm.h>
 
+typedef vec4 CglmVec4;
+
 #include "../../vkhelper2/include/vkhelper2.h"
 #include "../../vkstatic/include/vkstatic.h"
 #include "../include/vwdraw.h"
+
+#define F_TIME 10000000
 
 void vwdraw_flush_pending_paint(Vwdraw *vwd, VkCommandBuffer cbuf) {
 	Dmgrect dmg = vwd->brush.pending;
@@ -36,10 +40,10 @@ static void vwdraw_draw_dots(Vwdraw *vwd) {
 	int32_t y2 = y1 + (int32_t)vwd->player->image.size[1];
 	float wx = (float)vwd->vv.window_size[0] / 2.0f;
 	float wy = (float)vwd->vv.window_size[1] / 2.0f;
-	vec4 p1 = {(float)x1, (float)y1, 0.0, 1.0};
-	vec4 p2 = {(float)x2, (float)y1, 0.0, 1.0};
-	vec4 p3 = {(float)x1, (float)y2, 0.0, 1.0};
-	vec4 p4 = {(float)x2, (float)y2, 0.0, 1.0};
+	CglmVec4 p1 = {(float)x1, (float)y1, 0.0, 1.0};
+	CglmVec4 p2 = {(float)x2, (float)y1, 0.0, 1.0};
+	CglmVec4 p3 = {(float)x1, (float)y2, 0.0, 1.0};
+	CglmVec4 p4 = {(float)x2, (float)y2, 0.0, 1.0};
 	glm_mat4_mulv(vwd->iv.uniform.view, p1, p1);
 	glm_mat4_mulv(vwd->iv.uniform.view, p2, p2);
 	glm_mat4_mulv(vwd->iv.uniform.view, p3, p3);
@@ -59,7 +63,6 @@ static void vwdraw_draw_dots(Vwdraw *vwd) {
 }
 
 void vwdraw_go(Vwdraw *vwd) {
-	static const uint64_t FTIME = 10000000;
 	chrono_timer_reset(&vwd->timer);
 	if (vwdview_flush_events(&vwd->vv)) {
 		imgview_resize(&vwd->iv, vwd->vv.wew.wl.surface,
@@ -69,7 +72,7 @@ void vwdraw_go(Vwdraw *vwd) {
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	sync(vwd);
 	uint64_t dt = chrono_timer_finish(&vwd->timer);
-	if (dt < FTIME) {
-		chrono_sleep((uint32_t)(FTIME - dt));
+	if (dt < F_TIME) {
+		chrono_sleep((uint32_t)(F_TIME - dt));
 	}
 }
