@@ -63,7 +63,7 @@ static void vwdraw_draw_dots(Vwdraw *vwd) {
 }
 
 void vwdraw_go(Vwdraw *vwd) {
-	chrono_timer_reset(&vwd->timer);
+	com_6e5d_chrono_timer_reset(&vwd->timer);
 	if (vwdview_flush_events(&vwd->vv)) {
 		imgview_resize(&vwd->iv, vwd->vv.wew.wl.surface,
 			vwd->vv.window_size[0], vwd->vv.window_size[1]);
@@ -71,8 +71,8 @@ void vwdraw_go(Vwdraw *vwd) {
 	vwdraw_draw_dots(vwd);
 	dmgrect_union(&vwd->patchdmg, &vwd->brush.pending);
 	sync(vwd);
-	uint64_t dt = chrono_timer_finish(&vwd->timer);
+	uint64_t dt = com_6e5d_chrono_timer_finish(&vwd->timer);
 	if (dt < F_TIME) {
-		chrono_sleep((uint32_t)(F_TIME - dt));
+		com_6e5d_chrono_sleep((uint32_t)(F_TIME - dt));
 	}
 }

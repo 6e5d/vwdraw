@@ -39,7 +39,7 @@ typedef struct {
 	Dmgrect patchdmg;
 	Dmgrect submitundo;
 	VwdrawPlist plist;
-	ChronoTimer timer;
+	Com_6e5dChronoTimer timer;
 	int32_t focus; // focus
 } Vwdraw;
 void vwdraw_init(Vwdraw *vwd, char *path);

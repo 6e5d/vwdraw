@@ -4,7 +4,7 @@
 
 #include "../include/vwdraw.h"
 #include "../../vector/include/vector.h"
-#include "../../ppath/include/ppath.h"
+#include "../../ppath/build/ppath.h"
 
 typedef struct {
 	int id;
@@ -35,7 +35,7 @@ void vwdraw_lyc_clear_png(char *path) {
 }
 
 size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
-	char *abspath = ppath_abs_new(path);
+	char *abspath = com_6e5d_ppath_abs_new(path);
 	DIR *dp;
 	struct dirent *ep;
 	assert((dp = opendir(path)));
@@ -72,7 +72,7 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 		pl->offset[0] = pi->ox;
 		pl->offset[1] = pi->oy;
 		printf("%s\n", abspath);
-		ppath_rel(&imgpath, abspath, pi->path);
+		com_6e5d_ppath_rel(&imgpath, abspath, pi->path);
 		simpleimg_load(&pl->img, imgpath);
 	}
 	free(imgpath);
