@@ -15,21 +15,21 @@ static void vwdraw_plist_clear_redo(VwdrawPlist *plist) {
 	if (count == 0) { return; }
 	printf("dropping %zu redo\n", count);
 	for (size_t idx = plist->idx; idx < plist->buf.len; idx += 1) {
-		VwdrawPatch *p = vector_offset(&plist->buf, idx);
+		VwdrawPatch *p = com_6e5d_vector_offset(&plist->buf, idx);
 		vwdraw_patch_deinit(p);
 	}
-	vector_resize(&plist->buf, plist->idx);
+	com_6e5d_vector_resize(&plist->buf, plist->idx);
 }
 
 void vwdraw_plist_init(VwdrawPlist *plist) {
 	plist->idx = 0;
-	vector_init(&plist->buf, sizeof(VwdrawPatch));
+	com_6e5d_vector_init(&plist->buf, sizeof(VwdrawPatch));
 }
 
 void vwdraw_plist_deinit(VwdrawPlist *plist) {
 	plist->idx = 0;
 	vwdraw_plist_clear_redo(plist);
-	vector_deinit(&plist->buf);
+	com_6e5d_vector_deinit(&plist->buf);
 }
 
 void vwdraw_plist_debug(VwdrawPlist *plist) {
@@ -44,7 +44,7 @@ void vwdraw_plist_record_update(VwdrawPlist *plist,
 	simpleimg_new(&upd.img, area[2], area[3]);
 	simpleimg_paste(img, &upd.img, area[2], area[3],
 		area[0], area[1], 0, 0);
-	VwdrawPatch *p = vector_insert(&plist->buf, plist->idx);
+	VwdrawPatch *p = com_6e5d_vector_insert(&plist->buf, plist->idx);
 	plist->idx += 1;
 	*p = (VwdrawPatch) {
 		.ty = 0,
@@ -69,7 +69,7 @@ int32_t vwdraw_plist_walk_layer(VwdrawPlist *plist, Dmgrect *dmg, bool undo) {
 		return -1;
 	}
 	if (undo) { plist->idx -= 1; }
-	VwdrawPatch *p = vector_offset(&plist->buf, plist->idx);
+	VwdrawPatch *p = com_6e5d_vector_offset(&plist->buf, plist->idx);
 	assert(p->ty == 0); // only support update for now
 	VwdrawUpdate *upd = &p->data.update;
 	vwdraw_update_patch(upd, dmg);
@@ -80,7 +80,7 @@ int32_t vwdraw_plist_walk_layer(VwdrawPlist *plist, Dmgrect *dmg, bool undo) {
 int32_t vwdraw_plist_walk_update(
 	VwdrawPlist *plist, Simpleimg *img, bool undo
 ) {
-	VwdrawPatch *p = vector_offset(&plist->buf, plist->idx);
+	VwdrawPatch *p = com_6e5d_vector_offset(&plist->buf, plist->idx);
 	if (!undo) { plist->idx += 1; }
 	VwdrawUpdate *upd = &p->data.update;
 	Dmgrect dmg;

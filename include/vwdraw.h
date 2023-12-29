@@ -6,11 +6,11 @@
 #include "../../simpleimg/include/simpleimg.h"
 #include "../../imgview/include/imgview.h"
 #include "../../vwdedit/include/vwdedit.h"
-#include "../../vector/include/vector.h"
+#include "../../vector/build/vector.h"
 #include "../../vwdlayer/include/vwdlayer.h"
 #include "../../vwdlayout/include/vwdlayout.h"
 #include "../../vwdview/include/vwdview.h"
-#include "../../chrono/include/chrono.h"
+#include "../../chrono/build/chrono.h"
 #include "../../sib/include/sib.h"
 
 // LaYerCollection
@@ -23,7 +23,7 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path);
 void vwdraw_lyc_deinit(VwdrawLyc *lycp);
 
 typedef struct {
-	Vector buf; // Vector<VwdrawPatch>
+	Com_6e5dVector buf; // Vector<VwdrawPatch>
 	size_t idx; // VwdrawPatch *p more efficient but not important here
 } VwdrawPlist;
 typedef struct {

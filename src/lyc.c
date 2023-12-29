@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 #include "../include/vwdraw.h"
-#include "../../vector/include/vector.h"
+#include "../../vector/build/vector.h"
 #include "../../ppath/build/ppath.h"
 
 typedef struct {
@@ -39,8 +39,8 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 	DIR *dp;
 	struct dirent *ep;
 	assert((dp = opendir(path)));
-	Vector infos;
-	vector_init(&infos, sizeof(Info));
+	Vector() infos;
+	vector(init)(&infos, sizeof(Info));
 	while ((ep = readdir(dp))) {
 		char *p = strrchr(ep->d_name, '.');
 		if (p == NULL) { continue; }
@@ -61,7 +61,7 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 		info.oy = atoi(idx);
 		free(stok);
 		info.path = ep->d_name;
-		vector_pushback(&infos, (void *)&info);
+		vector(pushback)(&infos, (void *)&info);
 	}
 	qsort(infos.p, infos.len, infos.size, compare);
 	*lycp = malloc(infos.len * sizeof(VwdrawLyc));
@@ -79,7 +79,7 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 	free(abspath);
 
 	printf("read %zu layers\n", infos.len);
-	vector_deinit(&infos);
+	vector(deinit)(&infos);
 	closedir(dp);
 	return infos.len;
 }
