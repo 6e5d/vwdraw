@@ -1,24 +1,24 @@
-#include "../../simpleimg/include/simpleimg.h"
-#include "../../dmgrect/include/dmgrect.h"
+#include "../../simpleimg/build/simpleimg.h"
+#include "../../dmgrect/build/dmgrect.h"
 
 typedef struct {
 	uint32_t offset[2];
-	Simpleimg img;
-} VwdrawUpdate;
+	Simpleimg() img;
+} Vwdraw(Update);
 typedef union {
-	VwdrawUpdate update;
-	Dmgrect attr;
+	Vwdraw(Update) update;
+	Dmgrect() attr;
 	bool layout; // is_insert
-} VwdrawType;
+} Vwdraw(Type);
 typedef struct {
 	// 0-4 update, attr, layout
 	uint32_t ty;
 	int32_t ldx;
-	VwdrawType data;
-} VwdrawPatch;
-void vwdraw_plist_init(VwdrawPlist *plist);
-void vwdraw_plist_deinit(VwdrawPlist *plist);
-void vwdraw_plist_record_update(VwdrawPlist *plist,
-	int32_t ldx, uint32_t area[4], Simpleimg *img);
-int32_t vwdraw_plist_walk_layer(VwdrawPlist *plist, Dmgrect *dmg, bool undo);
-int32_t vwdraw_plist_walk_update(VwdrawPlist *plist, Simpleimg *img, bool undo);
+	Vwdraw(Type) data;
+} Vwdraw(Patch);
+void vwdraw(plist_init)(Vwdraw(Plist) *plist);
+void vwdraw(plist_deinit)(Vwdraw(Plist) *plist);
+void vwdraw(plist_record_update)(Vwdraw(Plist) *plist,
+	int32_t ldx, uint32_t area[4], Simpleimg() *img);
+int32_t vwdraw(plist_walk_layer)(Vwdraw(Plist) *plist, Dmgrect() *dmg, bool undo);
+int32_t vwdraw(plist_walk_update)(Vwdraw(Plist) *plist, Simpleimg() *img, bool undo);

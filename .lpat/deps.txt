@@ -11,3 +11,4 @@ vwdedit
 vwdlayer
 vwdlayout
 vwdview
+wlezwrap

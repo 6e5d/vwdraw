@@ -13,16 +13,17 @@ typedef struct {
 	char *path;
 } Info;
 
-static int compare(const void *a, const void *b) {
-	const Info *ia = a;
-	const Info *ib = b;
+static int compare(void *a, void *b) {
+	Info *ia = a;
+	Info *ib = b;
 	return ia->id - ib->id;
 }
 
-void vwdraw_lyc_clear_png(char *path) {
+void vwdraw(lyc_clear_png)(char *path) {
 	DIR *dp;
 	struct dirent *ep;
 	char pngfile[4096];
+	printf("path: %s\n", path);
 	assert((dp = opendir(path)));
 	while ((ep = readdir(dp))) {
 		char *p = strrchr(ep->d_name, '.');
@@ -34,7 +35,7 @@ void vwdraw_lyc_clear_png(char *path) {
 	}
 }
 
-size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
+size_t vwdraw(lyc_load)(Vwdraw(Lyc) **lycp, char* path) {
 	char *abspath = com_6e5d_ppath_abs_new(path);
 	DIR *dp;
 	struct dirent *ep;
@@ -46,7 +47,9 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 		if (p == NULL) { continue; }
 		if (0 != strcmp(".png", p)) { continue; }
 		char *saveptr;
-		char *stok = strdup(ep->d_name);
+		size_t len = strlen(ep->d_name) + 1;
+		char *stok = malloc(len);
+		memcpy(stok, ep->d_name, len);
 		Info info = {0};
 		char *endptr = NULL;
 		char *idx = strtok_r(stok, "_", &saveptr);
@@ -64,8 +67,8 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 		vector(pushback)(&infos, (void *)&info);
 	}
 	qsort(infos.p, infos.len, infos.size, compare);
-	*lycp = malloc(infos.len * sizeof(VwdrawLyc));
-	VwdrawLyc *pl = *lycp;
+	*lycp = malloc(infos.len * sizeof(Vwdraw(Lyc)));
+	Vwdraw(Lyc) *pl = *lycp;
 	Info *pi = infos.p;
 	char *imgpath = NULL;
 	for (size_t i = 0; i < infos.len; i += 1, pl += 1, pi += 1) {
@@ -73,7 +76,7 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 		pl->offset[1] = pi->oy;
 		printf("%s\n", abspath);
 		com_6e5d_ppath_rel(&imgpath, abspath, pi->path);
-		simpleimg_load(&pl->img, imgpath);
+		simpleimg(load)(&pl->img, imgpath);
 	}
 	free(imgpath);
 	free(abspath);
@@ -84,6 +87,6 @@ size_t vwdraw_lyc_load(VwdrawLyc **lycp, char* path) {
 	return infos.len;
 }
 
-void vwdraw_lyc_deinit(VwdrawLyc *lyc) {
-	simpleimg_deinit(&lyc->img);
+void vwdraw(lyc_deinit)(Vwdraw(Lyc) *lyc) {
+	simpleimg(deinit)(&lyc->img);
 }
